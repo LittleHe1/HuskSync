@@ -30,7 +30,10 @@ import net.william278.husksync.BukkitHuskSync;
 import net.william278.husksync.HuskSync;
 import net.william278.husksync.adapter.Adaptable;
 import net.william278.husksync.user.BukkitUser;
-import org.bukkit.*;
+import org.bukkit.Bukkit;
+import org.bukkit.Material;
+import org.bukkit.Registry;
+import org.bukkit.Statistic;
 import org.bukkit.advancement.AdvancementProgress;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.attribute.AttributeModifier;
@@ -66,7 +69,8 @@ public abstract class BukkitData implements Data {
         private final @Nullable ItemStack @NotNull [] contents;
 
         private Items(@Nullable ItemStack @NotNull [] contents) {
-            this.contents = Arrays.stream(contents)
+
+            this.contents = Arrays.stream(contents.clone())
                     .map(i -> i == null || i.getType() == Material.AIR ? null : i)
                     .toArray(ItemStack[]::new);
         }
@@ -128,13 +132,13 @@ public abstract class BukkitData implements Data {
             @Range(from = 0, to = 8)
             private int heldItemSlot;
 
-            private Inventory(@NotNull ItemStack[] contents, int heldItemSlot) {
+            private Inventory(@Nullable ItemStack @NotNull [] contents, int heldItemSlot) {
                 super(contents);
                 this.heldItemSlot = heldItemSlot;
             }
 
             @NotNull
-            public static BukkitData.Items.Inventory from(@NotNull ItemStack[] contents, int heldItemSlot) {
+            public static BukkitData.Items.Inventory from(@Nullable ItemStack @NotNull [] contents, int heldItemSlot) {
                 return new BukkitData.Items.Inventory(contents, heldItemSlot);
             }
 
@@ -341,16 +345,10 @@ public abstract class BukkitData implements Data {
         private void setAdvancement(@NotNull HuskSync plugin, @NotNull org.bukkit.advancement.Advancement advancement,
                                     @NotNull Player player, @NotNull BukkitUser user,
                                     @NotNull Collection<String> toAward, @NotNull Collection<String> toRevoke) {
-            final boolean folia = ((BukkitHuskSync) plugin).getScheduler().isUsingFolia();
             plugin.runSync(() -> {
                 // Track player exp level & progress
                 final int expLevel = player.getLevel();
                 final float expProgress = player.getExp();
-                boolean gameRuleUpdated = false;
-                if (!folia && Boolean.TRUE.equals(player.getWorld().getGameRuleValue(GameRule.ANNOUNCE_ADVANCEMENTS))) {
-                    player.getWorld().setGameRule(GameRule.ANNOUNCE_ADVANCEMENTS, false);
-                    gameRuleUpdated = true;
-                }
 
                 // Award and revoke advancement criteria
                 final AdvancementProgress progress = player.getAdvancementProgress(advancement);
@@ -361,9 +359,6 @@ public abstract class BukkitData implements Data {
                 if (!toAward.isEmpty() && player.getLevel() != expLevel || player.getExp() != expProgress) {
                     player.setLevel(expLevel);
                     player.setExp(expProgress);
-                }
-                if (gameRuleUpdated) {
-                    player.getWorld().setGameRule(GameRule.ANNOUNCE_ADVANCEMENTS, true);
                 }
             }, user);
         }
