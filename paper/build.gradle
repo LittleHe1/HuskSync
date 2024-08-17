@@ -34,7 +34,6 @@ shadowJar {
     relocate 'net.william278.desertwell', 'net.william278.husksync.libraries.desertwell'
     relocate 'net.william278.paginedown', 'net.william278.husksync.libraries.paginedown'
     relocate 'net.william278.mapdataapi', 'net.william278.husksync.libraries.mapdataapi'
-    relocate 'net.william278.andjam', 'net.william278.husksync.libraries.andjam'
     relocate 'net.william278.mpdbconverter', 'net.william278.husksync.libraries.mpdbconverter'
     relocate 'net.william278.hslmigrator', 'net.william278.husksync.libraries.hslconverter'
     relocate 'org.json', 'net.william278.husksync.libraries.json'
@@ -50,10 +49,6 @@ shadowJar {
 
 tasks {
     runServer {
-        minecraftVersion('1.21')
-
-        downloadPlugins {
-            url('https://download.luckperms.net/1549/bukkit/loader/LuckPerms-Bukkit-5.4.134.jar')
-        }
+        minecraftVersion('1.21.1')
     }
 }

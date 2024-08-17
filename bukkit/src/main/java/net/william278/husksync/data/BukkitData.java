@@ -33,11 +33,7 @@ import net.william278.husksync.HuskSync;
 import net.william278.husksync.adapter.Adaptable;
 import net.william278.husksync.config.Settings.SynchronizationSettings.AttributeSettings;
 import net.william278.husksync.user.BukkitUser;
-import org.bukkit.Bukkit;
-import org.bukkit.Material;
-import org.bukkit.Registry;
-import org.bukkit.Statistic;
-import org.bukkit.NamespacedKey;
+import org.bukkit.*;
 import org.bukkit.advancement.AdvancementProgress;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.attribute.AttributeModifier;
@@ -51,6 +47,7 @@ import org.bukkit.potion.PotionEffectType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Range;
+import org.jetbrains.annotations.Unmodifiable;
 
 import java.lang.reflect.Constructor;
 import java.util.*;
@@ -240,8 +237,9 @@ public abstract class BukkitData implements Data {
         private final Collection<PotionEffect> effects;
 
         @NotNull
-        public static BukkitData.PotionEffects from(@NotNull Collection<PotionEffect> effects) {
-            return new BukkitData.PotionEffects(effects);
+        public static BukkitData.PotionEffects from(@NotNull Collection<PotionEffect> sei) {
+            return new BukkitData.PotionEffects(Lists.newArrayList(sei.stream().filter(e -> !e.isAmbient()).toList()));
+
         }
 
         @NotNull
@@ -265,7 +263,7 @@ public abstract class BukkitData implements Data {
         @NotNull
         @SuppressWarnings("unused")
         public static BukkitData.PotionEffects empty() {
-            return new BukkitData.PotionEffects(List.of());
+            return new BukkitData.PotionEffects(Lists.newArrayList());
         }
 
         @Override
@@ -281,6 +279,7 @@ public abstract class BukkitData implements Data {
 
         @NotNull
         @Override
+        @Unmodifiable
         public List<Effect> getActiveEffects() {
             return effects.stream()
                     .map(potionEffect -> new Effect(
@@ -635,6 +634,15 @@ public abstract class BukkitData implements Data {
             }
         }
 
+        private static boolean useKeyedModifiers(@NotNull HuskSync plugin) {
+            if (USE_KEYED_MODIFIERS == TriState.NOT_SET) {
+                boolean is1_21 = plugin.getMinecraftVersion().compareTo(Version.fromString("1.21")) >= 0;
+                USE_KEYED_MODIFIERS = TriState.byBoolean(is1_21);
+                return is1_21;
+            }
+            return Boolean.TRUE.equals(USE_KEYED_MODIFIERS.toBoolean());
+        }
+
         private static void applyAttribute(@Nullable AttributeInstance instance, @Nullable Attribute attribute,
                                            @NotNull HuskSync plugin) {
             if (instance == null) {
@@ -647,6 +655,7 @@ public abstract class BukkitData implements Data {
                         .filter(mod -> instance.getModifiers().stream().map(AttributeModifier::getName)
                                 .noneMatch(n -> n.equals(mod.name())))
                         .distinct()
+                        .filter(mod -> useKeyedModifiers(plugin) == !mod.hasUuid())
                         .forEach(mod -> instance.addModifier(adapt(mod, plugin)));
             }
         }
@@ -655,11 +664,7 @@ public abstract class BukkitData implements Data {
         @NotNull
         private static AttributeModifier adapt(@NotNull Modifier modifier, @NotNull HuskSync plugin) {
             final int slotId = modifier.equipmentSlot();
-            if (USE_KEYED_MODIFIERS == TriState.NOT_SET) {
-                boolean is1_21 = plugin.getMinecraftVersion().compareTo(Version.fromString("1.21")) >= 0;
-                USE_KEYED_MODIFIERS = TriState.byBoolean(is1_21);
-            }
-            if (USE_KEYED_MODIFIERS == TriState.TRUE) {
+            if (useKeyedModifiers(plugin)) {
                 try {
                     // Reflexively create a modern keyed attribute modifier instance. Remove in favor of API long-term.
                     final EquipmentSlot slot = slotId != -1 ? EquipmentSlot.values()[slotId] : null;
