@@ -150,7 +150,7 @@ public class Settings {
         }
     }
 
-    // 𝓡𝓮𝓭𝓲𝓼 settings
+    // Redis settings
     @Comment("Redis settings")
     private RedisSettings redis = new RedisSettings();
 
@@ -159,7 +159,9 @@ public class Settings {
     @NoArgsConstructor(access = AccessLevel.PRIVATE)
     public static class RedisSettings {
 
-        @Comment("Specify the credentials of your Redis server here. Set \"password\" to '' if you don't have one")
+        @Comment({"Specify the credentials of your Redis server here.",
+                "Set \"user\" to '' if you don't have one or would like to use the default user.",
+                "Set \"password\" to '' if you don't have one."})
         private RedisCredentials credentials = new RedisCredentials();
 
         @Getter
@@ -168,6 +170,9 @@ public class Settings {
         public static class RedisCredentials {
             private String host = "localhost";
             private int port = 6379;
+            @Comment("Only change the database if you know what you are doing. The default is 0.")
+            private int database = 0;
+            private String user = "";
             private String password = "";
             private boolean useSsl = false;
         }
@@ -320,6 +325,9 @@ public class Settings {
         @Comment("Event priorities for listeners (HIGHEST, NORMAL, LOWEST). Change if you encounter plugin conflicts")
         @Getter(AccessLevel.NONE)
         private Map<String, String> eventPriorities = EventListener.ListenerType.getDefaults();
+
+        @Comment("Enable check-in petitions for data syncing (don't change this unless you know what you're doing)")
+        private boolean checkinPetitions = false;
 
         public boolean doAutoPin(@NotNull DataSnapshot.SaveCause cause) {
             return autoPinnedSaveCauses.contains(cause.name());

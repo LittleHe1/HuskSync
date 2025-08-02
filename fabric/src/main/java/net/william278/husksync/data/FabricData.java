@@ -26,7 +26,12 @@ import com.google.gson.annotations.SerializedName;
 import lombok.*;
 import net.minecraft.advancement.AdvancementProgress;
 import net.minecraft.advancement.PlayerAdvancementTracker;
+//#if MC==12001
+//$$ import net.minecraft.enchantment.EnchantmentHelper;
+//$$ import net.minecraft.nbt.NbtCompound;
+//#else
 import net.minecraft.component.DataComponentTypes;
+//#endif
 import net.minecraft.entity.attribute.EntityAttribute;
 import net.minecraft.entity.attribute.EntityAttributeInstance;
 import net.minecraft.entity.attribute.EntityAttributeModifier;
@@ -39,17 +44,19 @@ import net.minecraft.registry.Registry;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.stat.StatType;
 import net.minecraft.stat.Stats;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
-import net.minecraft.world.TeleportTarget;
 import net.william278.desertwell.util.ThrowingConsumer;
 import net.william278.husksync.FabricHuskSync;
 import net.william278.husksync.HuskSync;
 import net.william278.husksync.adapter.Adaptable;
 import net.william278.husksync.config.Settings.SynchronizationSettings.AttributeSettings;
+//#if MC>=12104
 import net.william278.husksync.mixins.HungerManagerMixin;
+//#endif
 import net.william278.husksync.user.FabricUser;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -88,11 +95,24 @@ public abstract class FabricData implements Data {
                             stack.getItem().toString(),
                             stack.getCount(),
                             stack.getName().getString(),
-                            stack.getComponents().get(DataComponentTypes.LORE).lines().stream().map(Text::getString).toList(),
+                            //#if MC==12001
+                            //$$ Optional.ofNullable(stack.getSubNbt(ItemStack.DISPLAY_KEY))
+                            //$$         .flatMap(display -> Optional.ofNullable(display.get(ItemStack.LORE_KEY))
+                            //$$                 .map(lore -> ((List<String>) lore).stream().toList()))
+                            //$$         .orElse(null),
+                            //$$ stack.getEnchantments().stream()
+                            //$$        .map(element -> EnchantmentHelper.getIdFromNbt((NbtCompound) element))
+                            //$$        .filter(Objects::nonNull).map(Identifier::toString)
+                            //$$        .toList()
+                            //#else
+                            stack.getComponents().get(DataComponentTypes.LORE).lines().stream()
+                                    .map(Text::getString)
+                                    .toList(),
                             stack.getEnchantments().getEnchantments().stream()
                                     .map(RegistryEntry::getIdAsString)
                                     .filter(Objects::nonNull)
                                     .toList()
+                            //#endif
                     ) : null)
                     .toArray(Stack[]::new);
         }
@@ -158,13 +178,21 @@ public abstract class FabricData implements Data {
             @Override
             public void apply(@NotNull FabricUser user, @NotNull FabricHuskSync plugin) throws IllegalStateException {
                 final ServerPlayerEntity player = user.getPlayer();
+                //#if MC>=12104
                 player.playerScreenHandler.getCraftingInput().clear();
+                //#else
+                //$$ player.playerScreenHandler.clearCraftingSlots();
+                //#endif
                 player.currentScreenHandler.setCursorStack(ItemStack.EMPTY);
                 final ItemStack[] items = getContents();
                 for (int slot = 0; slot < player.getInventory().size(); slot++) {
                     player.getInventory().setStack(slot, items[slot] == null ? ItemStack.EMPTY : items[slot]);
                 }
-                player.getInventory().selectedSlot = heldItemSlot;
+                //#if MC<12105
+                //$$ player.getInventory().selectedSlot = heldItemSlot;
+                //#else
+                player.getInventory().setSelectedSlot(heldItemSlot);
+                //#endif
                 player.playerScreenHandler.sendContentUpdates();
                 player.getInventory().updateItems();
             }
@@ -246,7 +274,11 @@ public abstract class FabricData implements Data {
                     .map(effect -> {
                         final StatusEffect type = matchEffectType(effect.type());
                         return type != null ? new StatusEffectInstance(
+                                //#if MC==12001
+                                //$$ type,
+                                //#else
                                 RegistryEntry.of(type),
+                                //#endif
                                 effect.duration(),
                                 effect.amplifier(),
                                 effect.isAmbient(),
@@ -268,10 +300,16 @@ public abstract class FabricData implements Data {
         @Override
         public void apply(@NotNull FabricUser user, @NotNull FabricHuskSync plugin) throws IllegalStateException {
             final ServerPlayerEntity player = user.getPlayer();
+            //#if MC==12001
+            //$$ final List<StatusEffect> effectsToRemove = player.getActiveStatusEffects().entrySet().stream()
+            //$$        .filter(e -> !e.getValue().isAmbient()).map(Map.Entry::getKey).toList();
+            //$$ effectsToRemove.forEach(player::removeStatusEffect);
+            //#else
             //todo ambient check
-            List<StatusEffect> effectsToRemove = new ArrayList<>(player.getActiveStatusEffects().keySet().stream()
+            final List<StatusEffect> effectsToRemove = new ArrayList<>(player.getActiveStatusEffects().keySet().stream()
                     .map(RegistryEntry::value).toList());
             effectsToRemove.forEach(effect -> player.removeStatusEffect(RegistryEntry.of(effect)));
+            //#endif
             getEffects().forEach(player::addStatusEffect);
         }
 
@@ -281,7 +319,11 @@ public abstract class FabricData implements Data {
         public List<Effect> getActiveEffects() {
             return effects.stream()
                     .map(potionEffect -> {
+                        //#if MC==12001
+                        //$$ final String key = getEffectId(potionEffect.getEffectType());
+                        //#else
                         final String key = getEffectId(potionEffect.getEffectType().value());
+                        //#endif
                         return key != null ? new Effect(
                                 key,
                                 potionEffect.getAmplifier(),
@@ -313,12 +355,25 @@ public abstract class FabricData implements Data {
                 final AdvancementProgress advancementProgress = player.getAdvancementTracker().getProgress(advancementEntry);
                 final Map<String, Date> awardedCriteria = Maps.newHashMap();
 
-                advancementProgress.getObtainedCriteria().forEach((criteria) -> awardedCriteria.put(criteria,
-                        Date.from(advancementProgress.getEarliestProgressObtainDate())));
+                advancementProgress.getObtainedCriteria().forEach((criteria) -> awardedCriteria.put(
+                        criteria,
+                        //#if MC==12001
+                        //$$ advancementProgress.getEarliestProgressObtainDate()
+                        //#else
+                        Date.from(advancementProgress.getEarliestProgressObtainDate())
+                        //#endif
+                ));
 
                 // Only save the advancement if criteria has been completed
                 if (!awardedCriteria.isEmpty()) {
-                    advancements.add(Advancement.adapt(advancementEntry.id().asString(), awardedCriteria));
+                    advancements.add(Advancement.adapt(
+                            //#if MC==12001
+                            //$$ advancementEntry.getId().toString(),
+                            //#else
+                            advancementEntry.id().asString(),
+                            //#endif
+                            awardedCriteria
+                    ));
                 }
             });
             return new FabricData.Advancements(advancements);
@@ -336,7 +391,13 @@ public abstract class FabricData implements Data {
             plugin.runAsync(() -> forEachAdvancementEntry(server, advancementEntry -> {
                 final AdvancementProgress progress = player.getAdvancementTracker().getProgress(advancementEntry);
                 final Optional<Advancement> record = completed.stream()
-                        .filter(r -> r.getKey().equals(advancementEntry.id().toString()))
+                        .filter(r -> r.getKey().equals(
+                                //#if MC==12001
+                                //$$ advancementEntry.getId().toString()
+                                //#else
+                                advancementEntry.id().asString()
+                                //#endif
+                        ))
                         .findFirst();
                 if (record.isEmpty()) {
                     return;
@@ -353,7 +414,11 @@ public abstract class FabricData implements Data {
         }
 
         private void setAdvancement(@NotNull FabricHuskSync plugin,
+                                    //#if MC==12001
+                                    //$$ @NotNull net.minecraft.advancement.Advancement advancementEntry,
+                                    //#else
                                     @NotNull net.minecraft.advancement.AdvancementEntry advancementEntry,
+                                    //#endif
                                     @NotNull ServerPlayerEntity player,
                                     @NotNull FabricUser user,
                                     @NotNull List<String> toAward,
@@ -370,7 +435,7 @@ public abstract class FabricData implements Data {
 
                 // Restore player exp level & progress
                 if (!toAward.isEmpty()
-                    && (player.experienceLevel != expLevel || player.experienceProgress != expProgress)) {
+                        && (player.experienceLevel != expLevel || player.experienceProgress != expProgress)) {
                     player.setExperienceLevel(expLevel);
                     player.setExperiencePoints((int) (player.getNextLevelExperience() * expProgress));
                 }
@@ -378,8 +443,14 @@ public abstract class FabricData implements Data {
         }
 
         // Performs a consuming function for every advancement entry registered on the server
-        private static void forEachAdvancementEntry(@NotNull MinecraftServer server,
-                                                    @NotNull ThrowingConsumer<net.minecraft.advancement.AdvancementEntry> con) {
+        private static void forEachAdvancementEntry(
+                @NotNull MinecraftServer server,
+                //#if MC==12001
+                //$$ @NotNull ThrowingConsumer<net.minecraft.advancement.Advancement> con
+                //#else
+                @NotNull ThrowingConsumer<net.minecraft.advancement.AdvancementEntry> con
+                //#endif
+        ) {
             server.getAdvancementLoader().getAdvancements().forEach(con);
         }
 
@@ -411,6 +482,11 @@ public abstract class FabricData implements Data {
 
         @NotNull
         public static FabricData.Location adapt(@NotNull ServerPlayerEntity player) {
+            //#if MC==12001
+            //$$ final String worldName = player.getWorld().getDimensionKey().getValue().toString();
+            //#else
+            final String worldName = player.getWorld().getDimensionEntry().getIdAsString();
+            //#endif
             return from(
                     player.getX(),
                     player.getY(),
@@ -421,10 +497,8 @@ public abstract class FabricData implements Data {
                             Objects.requireNonNull(
                                     player.getWorld(), "World is null"
                             ).getRegistryKey().getValue().toString(),
-                            UUID.nameUUIDFromBytes(
-                                    player.getWorld().getDimensionEntry().getIdAsString().getBytes()
-                            ),
-                            player.getWorld().getDimensionEntry().getIdAsString()
+                            UUID.nameUUIDFromBytes(worldName.getBytes()),
+                            worldName
                     )
             );
         }
@@ -433,19 +507,21 @@ public abstract class FabricData implements Data {
         public void apply(@NotNull FabricUser user, @NotNull FabricHuskSync plugin) throws IllegalStateException {
             final ServerPlayerEntity player = user.getPlayer();
             final MinecraftServer server = plugin.getMinecraftServer();
+
+            // Find world
+            final String worldName = world.name();
+            final ServerWorld target = server.getWorld(server.getWorldRegistryKeys().stream()
+                    .filter(key -> key.getValue().equals(Identifier.tryParse(worldName))).findFirst()
+                    .orElseThrow(() -> new IllegalStateException("Invalid target world: %s".formatted(worldName))));
+
+            // Apply teleport
             try {
                 player.dismountVehicle();
-                player.teleportTo(
-                        new TeleportTarget(
-                                server.getWorld(server.getWorldRegistryKeys().stream()
-                                        .filter(key -> key.getValue().equals(Identifier.tryParse(world.name())))
-                                        .findFirst().orElseThrow(
-                                                () -> new IllegalStateException("Invalid world")
-                                        )),
-                                player,
-                                TeleportTarget.NO_OP
-                        )
-                );
+                //#if MC>=12104
+                player.teleport(target, x, y, z, Set.of(), yaw, pitch, true);
+                //#else
+                //$$ player.teleport(target, x, y, z, yaw, pitch);
+                //#endif
             } catch (Throwable e) {
                 throw new IllegalStateException("Failed to apply location", e);
             }
@@ -477,12 +553,21 @@ public abstract class FabricData implements Data {
             final Map<String, Map<String, Integer>> blocks = Maps.newHashMap(),
                     items = Maps.newHashMap(), entities = Maps.newHashMap();
             Registries.STAT_TYPE.getEntrySet().forEach(stat -> {
+                // This is necessary to prevent weird re-mappings with Registry#getKey()
+                //#if MC>0
+                //$$ final Registry<?> registry = stat.getValue().getRegistry();
+                //$$ final String registryId = registry.getKey().getValue().value();
+                //$$ if (registryId.equals("custom_stat")) {
+                //$$    return;
+                //$$ }
+                //#else
                 final Registry<?> registry = stat.getValue().getRegistry();
-
-                final String registryId = registry.getKey().getValue().getPath();
+                final String registryId = registry.getKey().getValue().value();
                 if (registryId.equals("custom_stat")) {
                     return;
                 }
+                //#endif
+
                 final Map<String, Integer> map = (switch (registryId) {
                     case BLOCK_STAT_TYPE -> blocks;
                     case ITEM_STAT_TYPE -> items;
@@ -574,6 +659,21 @@ public abstract class FabricData implements Data {
             final List<Attribute> attributes = Lists.newArrayList();
             final AttributeSettings settings = plugin.getSettings().getSynchronization().getAttributes();
             Registries.ATTRIBUTE.forEach(id -> {
+                //#if MC==12001
+                //$$ final EntityAttributeInstance instance = player.getAttributeInstance(id);
+                //$$ final Identifier key = Registries.ATTRIBUTE.getId(id);
+                //$$ if (instance == null || key == null || settings.isIgnoredAttribute(key.asString())) {
+                //$$     return;
+                //$$ }
+                //$$ final Set<Modifier> modifiers = Sets.newHashSet();
+                //$$ instance.getModifiers().forEach(modifier -> modifiers.add(new Modifier(
+                //$$         modifier.getId(),
+                //$$         modifier.getName(),
+                //$$         modifier.getValue(),
+                //$$         modifier.getOperation().getId(),
+                //$$         -1
+                //$$ )));
+                //#else
                 final EntityAttributeInstance instance = player.getAttributeInstance(RegistryEntry.of(id));
                 final Identifier key = Registries.ATTRIBUTE.getId(id);
                 if (instance == null || key == null || settings.isIgnoredAttribute(key.asString())) {
@@ -586,6 +686,7 @@ public abstract class FabricData implements Data {
                         modifier.operation().getId(),
                         Modifier.ANY_EQUIPMENT_SLOT_GROUP
                 )));
+                //#endif
                 attributes.add(new Attribute(
                         key.toString(),
                         instance.getBaseValue(),
@@ -618,7 +719,11 @@ public abstract class FabricData implements Data {
                     return;
                 }
                 applyAttribute(
+                        //#if MC==12001
+                        //$$ user.getPlayer().getAttributeInstance(id),
+                        //#else
                         user.getPlayer().getAttributeInstance(RegistryEntry.of(id)),
+                        //#endif
                         getAttribute(id).orElse(null)
                 );
             });
@@ -633,11 +738,20 @@ public abstract class FabricData implements Data {
             instance.getModifiers().forEach(instance::removeModifier);
             instance.setBaseValue(attribute == null ? instance.getValue() : attribute.baseValue());
             if (attribute != null) {
+                //#if MC==12001
+                //$$ attribute.modifiers().forEach(modifier -> instance.addPersistentModifier(new EntityAttributeModifier(
+                //$$         modifier.uuid(),
+                //$$         modifier.name(),
+                //$$         modifier.amount(),
+                //$$         EntityAttributeModifier.Operation.fromId(modifier.operation())
+                //$$ )));
+                //#else
                 attribute.modifiers().forEach(modifier -> instance.addTemporaryModifier(new EntityAttributeModifier(
-                        Identifier.of(modifier.uuid().toString()),
+                        Identifier.of(modifier.name()),
                         modifier.amount(),
                         EntityAttributeModifier.Operation.ID_TO_VALUE.apply(modifier.operation())
                 )));
+                //#endif
             }
         }
 
@@ -694,7 +808,12 @@ public abstract class FabricData implements Data {
         @NotNull
         public static FabricData.Hunger adapt(@NotNull ServerPlayerEntity player) {
             final HungerManager hunger = player.getHungerManager();
-            return from(hunger.getFoodLevel(), hunger.getSaturationLevel(), ((HungerManagerMixin) hunger).getExhaustion());
+            //#if MC>=12104
+            float exhaustion = ((HungerManagerMixin) hunger).getExhaustion();
+            //#else
+            //$$ float exhaustion = hunger.getExhaustion();
+            //#endif
+            return from(hunger.getFoodLevel(), hunger.getSaturationLevel(), exhaustion);
         }
 
         @NotNull
@@ -708,7 +827,11 @@ public abstract class FabricData implements Data {
             final HungerManager hunger = player.getHungerManager();
             hunger.setFoodLevel(foodLevel);
             hunger.setSaturationLevel(saturation);
+            //#if MC>=12104
             ((HungerManagerMixin) hunger).setExhaustion(exhaustion);
+            //#else
+            //$$ hunger.setExhaustion(exhaustion);
+            //#endif
         }
 
     }
@@ -769,7 +892,11 @@ public abstract class FabricData implements Data {
 
         @Override
         public void apply(@NotNull FabricUser user, @NotNull FabricHuskSync plugin) throws IllegalStateException {
-            user.getPlayer().changeGameMode(net.minecraft.world.GameMode.byName(gameMode));
+            //#if MC<12105
+            //$$ user.getPlayer().changeGameMode(net.minecraft.world.GameMode.byName(gameMode));
+            //#else
+            user.getPlayer().changeGameMode(net.minecraft.world.GameMode.byId(gameMode));
+            //#endif
         }
 
     }

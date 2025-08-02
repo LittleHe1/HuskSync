@@ -1,8 +1,8 @@
 <!--suppress ALL -->
 <p align="center">
     <img src="images/banner.png" alt="HuskSync" />
-    <a href="https://github.com/WiIIiam278/HuskSync/actions/workflows/ci_master.yml">
-        <img src="https://img.shields.io/github/actions/workflow/status/WiIIiam278/HuskSync/ci_master.yml?branch=master&logo=github"/>
+    <a href="https://github.com/WiIIiam278/HuskSync/actions/workflows/ci.yml">
+        <img src="https://img.shields.io/github/actions/workflow/status/WiIIiam278/HuskSync/ci.yml?branch=master&logo=github"/>
     </a>
     <a href="https://repo.william278.net/#/releases/net/william278/husksync/">
         <img src="https://repo.william278.net/api/badge/latest/releases/net/william278/husksync/husksync-common?color=00fb9a&name=Maven&prefix=v" />
@@ -46,16 +46,19 @@
 ## Compatibility
 HuskSync supports the following [compatible versions](https://william278.net/docs/husksync/compatibility) of Minecraft. Since v3.7, you must download the correct version of HuskSync for your server:
 
-|    Minecraft    | Latest HuskSync | Java Version | Platforms     | Support Status               |
-|:---------------:|:---------------:|:------------:|:--------------|:-----------------------------|
-|     1.21.4      |    _latest_     |      21      | Paper, Fabric | ✅ **Active Release**         |
-|     1.21.3      |      3.7.1      |      21      | Paper, Fabric | 🗃️ Archived (December 2024) |
-|     1.21.1      |    _latest_     |      21      | Paper, Fabric | ✅ **November 2025** (LTS)    |
-|     1.20.6      |      3.6.8      |      17      | Paper         | 🗃️ Archived (October 2024)  |
-|     1.20.4      |      3.6.8      |      17      | Paper         | 🗃️ Archived (July 2024)     |
-|     1.20.1      |    _latest_     |      17      | Paper, Fabric | ✅ **November 2025** (LTS)    |
-| 1.17.1 - 1.19.4 |      3.6.8      |      17      | Paper         | 🗃️ Archived                 |
-|     1.16.5      |      3.2.1      |      16      | Paper         | 🗃️ Archived                 |
+|    Minecraft    | Latest HuskSync | Java Version | Platforms     | Support Status                |
+|:---------------:|:---------------:|:------------:|:--------------|:------------------------------|
+|    1.21.7/8     |    _latest_     |      21      | Paper         | ✅ **Active Release**          |
+|     1.21.6      |      3.8.5      |      21      | Paper         | 🗃️ Archived (July 2025)      |
+|     1.21.5      |    _latest_     |      21      | Paper         | ✅ **January 2026** (Non-LTS)  |
+|     1.21.4      |    _latest_     |      21      | Paper, Fabric | ✅ **November 2025** (Non-LTS) |
+|     1.21.3      |      3.7.1      |      21      | Paper, Fabric | 🗃️ Archived (December 2024)  |
+|     1.21.1      |    _latest_     |      21      | Paper, Fabric | ✅ **November 2025** (LTS)     |
+|     1.20.6      |      3.6.8      |      17      | Paper         | 🗃️ Archived (October 2024)   |
+|     1.20.4      |      3.6.8      |      17      | Paper         | 🗃️ Archived (July 2024)      |
+|     1.20.1      |    _latest_     |      17      | Paper, Fabric | ✅ **November 2025** (LTS)     |
+| 1.17.1 - 1.19.4 |      3.6.8      |      17      | Paper         | 🗃️ Archived                  |
+|     1.16.5      |      3.2.1      |      16      | Paper         | 🗃️ Archived                  |
 
 HuskSync is primarily developed against the latest release. Old Minecraft versions are allocated a support channel based on popularity, mod support, etc:
 
@@ -78,6 +81,8 @@ To build HuskSync, simply run the following in the root of the repository (build
 ```bash
 ./gradlew clean build
 ```
+
+HuskSync uses `essential-multi-version` (Fabric) and `preprocessor` (Bukkit) to target multiple versions of Minecraft in one codebase - [check here](https://github.com/WiIIiam278/PreProcessor?tab=readme-ov-file#code-example) for a preprocessor comment logic reference.
 
 ### License
 HuskSync is licensed under the Apache 2.0 license.
@@ -103,4 +108,4 @@ Translations of the plugin locales are welcome to help make the plugin more acce
 - [bStats](https://bstats.org/plugin/bukkit/HuskSync%20-%20Bukkit/13140) &mdash; View plugin metrics
 
 ---
-&copy; [William278](https://william278.net/), 2023. Licensed under the Apache-2.0 License.
+&copy; [William278](https://william278.net/), 2025. Licensed under the Apache-2.0 License.
